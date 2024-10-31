@@ -1,79 +1,97 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator"
 )
 
 type Response struct {
-	Status     int         `json:"statusCode" validate:"required"`
+	StatusCode int         `json:"statusCode" validate:"required"`
 	Message    string      `json:"message,omitempty"`
 	Data       interface{} `json:"data"`
 	XCSRFToken string      `json:"csrf,omitempty"`
 }
 
-var validate = validator.New()
-
-func WithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, 10*time.Second)
+// HTTP status code 200
+func StatusOK(c *gin.Context, data interface{}) {
+	SendResponse(c, http.StatusOK, "", data)
 }
 
-func ValidateAndBind(c *gin.Context, v interface{}) bool {
-	if err := c.BindJSON(v); err != nil {
-		HandleBadRequest(c, err)
-		return false
-	}
-
-	if validationErr := validate.Struct(v); validationErr != nil {
-		HandleValidationError(c, validationErr)
-		return false
-	}
-	return true
+// HTTP status code 201
+func StatusCreated(c *gin.Context, data interface{}) {
+	SendResponse(c, http.StatusCreated, "", data)
 }
 
-func HandleUnauthorized(c *gin.Context, message string) {
-	c.JSON(http.StatusUnauthorized, Response{Status: 0, Message: strings.ToLower(fmt.Sprintf("%v", message)), XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 202
+func StatusAccepted(c *gin.Context, data interface{}) {
+	SendResponse(c, http.StatusAccepted, "", data)
 }
 
-func HandleValidationError(c *gin.Context, validationErr error) {
-	c.JSON(http.StatusBadRequest, Response{Status: 0, Message: validationErr.Error(), XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 204
+func StatusNoContent(c *gin.Context, message string) {
+	SendResponse(c, http.StatusNoContent, message, nil)
 }
 
-func HandleInternalError(c *gin.Context, err error) {
-	c.JSON(http.StatusInternalServerError, Response{Status: 0, Message: err.Error(), XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 307
+func StatusTemporaryRedirect(c *gin.Context, message string, data interface{}) {
+	SendResponse(c, http.StatusTemporaryRedirect, message, data)
 }
 
-func HandleBadRequest(c *gin.Context, err error) {
-	c.JSON(http.StatusBadRequest, Response{Status: 0, Message: err.Error(), XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 400
+func StatusBadRequest(c *gin.Context, err error) {
+	SendResponse(c, http.StatusBadRequest, err.Error(), nil)
 }
 
-func HandleNotFound(c *gin.Context, message string) {
-	c.JSON(http.StatusNotFound, Response{Status: 0, Message: strings.ToLower(fmt.Sprintf("%v", message)), XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 401
+func StatusUnauthorized(c *gin.Context, message string) {
+	SendResponse(c, http.StatusUnauthorized, message, nil)
 }
 
-func HandleCreated(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusCreated, Response{Status: 1, Data: data, XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 403
+func StatusForbidden(c *gin.Context) {
+	SendResponse(c, http.StatusForbidden, "forbidden access", nil)
 }
 
-func HandleOK(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, Response{Status: 1, Data: data, XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 404
+func StatusNotFound(c *gin.Context, message string) {
+	SendResponse(c, http.StatusNotFound, message, nil)
 }
 
-func HandleNoContent(c *gin.Context, message string) {
-	c.JSON(http.StatusNoContent, Response{Status: 1, Data: message, XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 417
+func StatusExpectationFailed(c *gin.Context, message string) {
+	SendResponse(c, http.StatusExpectationFailed, message, nil)
 }
 
-func HandleForbidden(c *gin.Context) {
-	c.JSON(http.StatusForbidden, Response{Status: 0, Message: "unauthorized", XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 423
+func StatusLocked(c *gin.Context, message string) {
+	SendResponse(c, http.StatusLocked, message, nil)
 }
 
-func HandleServiceUnavailable(c *gin.Context, err error) {
-	msg := "ServiceUnavailable: " + err.Error()
-	c.JSON(http.StatusServiceUnavailable, Response{Status: 0, Message: msg, XCSRFToken: c.GetHeader("X-CSRF-Token")})
+// HTTP status code 428
+func StatusPreconditionFailed(c *gin.Context, message string) {
+	SendResponse(c, http.StatusPreconditionFailed, message, nil)
+}
+
+// HTTP status code 500
+func StatusInternalServerError(c *gin.Context, err error) {
+	SendResponse(c, http.StatusInternalServerError, err.Error(), nil)
+}
+
+// HTTP status code 503
+func StatusServiceUnavailable(c *gin.Context, service string, err error) {
+	msg := fmt.Sprintf("%s unavailable: %s", service, err.Error())
+	SendResponse(c, http.StatusServiceUnavailable, msg, nil)
+}
+
+// Send Response
+func SendResponse(c *gin.Context, status int, message string, data interface{}) {
+	c.JSON(status, Response{
+		StatusCode: status,
+		Message:    strings.ToLower(message),
+		Data:       data,
+		XCSRFToken: c.GetHeader("X-CSRF-Token"),
+	})
 }
